@@ -1,5 +1,15 @@
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+Find the word, or Mr. White.
+
+run client : npm start
+
+To do :
+-be able to reconnect clients
+-merge variables in a player object
+-create multiple games at the same time
+-add database
+
 ## Available Scripts
 
 In the project directory, you can run:

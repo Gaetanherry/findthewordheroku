@@ -27,12 +27,14 @@ class App extends Component {
       vote: -1,
       playersVotes: [],
       whiteDead: false,
-      whiteWon: false
+      whiteWon: false,
+      disconnected: []
     };
     socket=socketIOClient(this.state.endpoint);
   }
 
   componentDidMount() {
+    socket.on("disconnected", data => this.setState({ disconnected : data}));
     socket.on("lobby", () => this.setState({ gameState : 0, isReady : false }));
     socket.on("mrWhiteWon", () => this.setState({ whiteWon : true }));
     socket.on("mrWhiteDead", () => this.setState({ whiteDead : true }));
@@ -94,6 +96,10 @@ class App extends Component {
   }
 
   render() {
+    let dPlayers = [];
+    this.state.disconnected.forEach((item,i) => {
+      item && dPlayers.push(this.state.players[i]);
+    });
     return (
         
         <div id="container">
@@ -141,62 +147,83 @@ class App extends Component {
                 Vous devrez trouver des mots similaires mais pas trop, pour montrer aux autres que vous connaissez le mot,<br/>
                 tout en empêchant Mr. White, qui n'a aucun mot, de le deviner !</p>
               }
-              {this.state.gameState === 1 ?
-              <>
-              <div id="tableDiv">
-              <table>
-                <th><td>Joueurs</td></th>
-                {
-                  this.state.players.map((player,i) => {
-                  return<tr><td>{this.state.alive[i] ? <>{this.state.turnDone[i] ? <i>{player}</i> : <>{player}</>}</> : <del>{player}</del> } {this.state.turn === i && <i className="fas fa-arrow-left fa-1x"></i>}</td></tr>;
-                  })
-                }
-              </table>
-              </div>
-              <p>Au tour de {this.state.players[this.state.turn]} de donner son mot !</p>
-
-              {this.state.players[this.state.turn] === this.state.name && //c'est ton tour
+              {this.state.disconnected.reduce(function(acc,curr) { // s'il y a un déconnecté
+                                        return acc || curr;
+                                      }) ?
                 <>
-                <br/><button className="playButton" onClick={() => this.turnFinished()}>Mot donné</button>
+                <p>En attente de reconnexion de(s) joueur(s) :</p>
+                {dPlayers.map(item => {
+                    return <p>{item}</p>;
+                })}
                 </>
-              }
-              </>
-              : // tour des votes
-              <>
-                {this.state.gameState === 2 ?
+              :
+                <>
+                {this.state.gameState === 1 ?
                 <>
                 <div id="tableDiv">
                 <table>
                   <th><td>Joueurs</td></th>
                   {
                     this.state.players.map((player,i) => {
-                    return<tr><td>{this.state.alive[i] ? <button className="playButton" onClick={() => this.giveVote(i)}>{player}</button> : <del>{player}</del>} {this.state.playersVotes[i]} Votes</td></tr>;
+                    return<tr><td>{this.state.alive[i] ? <>{this.state.turnDone[i] ? <i>{player}</i> : <>{player}</>}</> : <del>{player}</del> } {this.state.turn === i && <i className="fas fa-arrow-left fa-1x"></i>}</td></tr>;
                     })
                   }
                 </table>
                 </div>
-                <p>Votez pour le joueur qui est Mr. White, il sera éliminé ! <br/>
-                Le vote se termine dès que tout le monde a un vote et qu'il y a une majorité.</p>
-                </>
-                : // élimination
-                <>
-                <p><b>{this.state.death}</b> est éliminé(e) ! <br/></p>
-                {this.state.whiteDead ?
-                  <p>Mr White est éliminé ! Partie terminée.</p>
-                :
-                <>{this.state.whiteWon ?
-                  <p>Mr White a fait une victoire parfaite ! Partie terminée.</p>
-                  :
-                  <p>Ce n'était pas Mr White ! La partie continue.</p>
-                  }</>
+                <p>Au tour de {this.state.players[this.state.turn]} de donner son mot !</p>
+
+                {this.state.players[this.state.turn] === this.state.name && //c'est ton tour
+                  <>
+                  <br/><button className="playButton" onClick={() => this.turnFinished()}>Mot donné</button>
+                  </>
                 }
+                </>
+                : // tour des votes
+                <>
+                  {this.state.gameState === 2 ?
+                  <>
+                  <div id="tableDiv">
+                  <table>
+                    <th><td>Joueurs</td></th>
+                    {
+                      this.state.players.map((player,i) => {
+                      return<tr><td>{this.state.alive[i] ? <button className="playButton" onClick={() => this.giveVote(i)}>{player}</button> : <del>{player}</del>} {this.state.playersVotes[i]} Votes</td></tr>;
+                      })
+                    }
+                  </table>
+                  </div>
+                  <p>Votez pour le joueur qui est Mr. White, il sera éliminé ! <br/>
+                  Le vote se termine dès que tout le monde a un vote et qu'il y a une majorité.</p>
+                  </>
+                  : // élimination
+                  <>
+                  <p><b>{this.state.death}</b> est éliminé(e) ! <br/></p>
+                  {this.state.whiteDead ?
+                    <p>Mr White est éliminé ! Partie terminée.<br />
+                    Mr White a une tentative pour trouver le mot, s'il le trouve il gagne !</p>
+                  :
+                  <>{this.state.whiteWon ?
+                    <p>Mr White a fait une victoire parfaite ! Partie terminée.</p>
+                    :
+                    <p>Ce n'était pas Mr White ! La partie continue.</p>
+                    }</>
+                  }
+                  </>
+                  }
                 </>
                 }
               </>
               }
               </>
               :
+              <>
               <p>Ne bougez pas! Une partie est en cours, vous rejoindrez dès qu'elle se termine.</p>
+              {this.state.disconnected.reduce(function(acc,curr) { // s'il y a un déconnecté
+                                        return acc || curr;
+                                      }) &&
+              <p>Si vous avez été déconnecté, reconnectez vous avec le pseudo exact.</p>
+              }
+              </>
             }
             </>
           }
