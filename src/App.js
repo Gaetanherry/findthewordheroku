@@ -16,7 +16,7 @@ class App extends Component {
       registered: false,
       players: [],
       totalPlayers: 0,
-      endpoint: "http://127.0.0.1:"+port,
+      endpoint: "/",
       name: "",
       gameState: 0,// 0: setting players 1: saying words 2: voting 3: vote results
       mrWhite: false,
