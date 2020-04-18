@@ -9,13 +9,14 @@ var socket;
 class App extends Component {
   constructor() {
     super();
+    let port = process.env.PORT || 3000;
     this.state = {
       isReady: false,
       ready : [],
       registered: false,
       players: [],
       totalPlayers: 0,
-      endpoint: "http://127.0.0.1:4001",
+      endpoint: "http://127.0.0.1:"+port,
       name: "",
       gameState: 0,// 0: setting players 1: saying words 2: voting 3: vote results
       mrWhite: false,
@@ -34,6 +35,7 @@ class App extends Component {
   }
 
   componentDidMount() {
+    socket.on("registered", () => this.setState({ registered : true }));
     socket.on("disconnected", data => this.setState({ disconnected : data}));
     socket.on("lobby", () => this.setState({ gameState : 0, isReady : false }));
     socket.on("mrWhiteWon", () => this.setState({ whiteWon : true }));
@@ -72,7 +74,6 @@ class App extends Component {
   play() {
     if(this.state.name !== "") {
       socket.emit("newPlayer",this.state.name);
-      this.setState({ registered : true });
     }
   }
 
@@ -147,7 +148,7 @@ class App extends Component {
                 Vous devrez trouver des mots similaires mais pas trop, pour montrer aux autres que vous connaissez le mot,<br/>
                 tout en empêchant Mr. White, qui n'a aucun mot, de le deviner !</p>
               }
-              {this.state.disconnected.reduce(function(acc,curr) { // s'il y a un déconnecté
+              {this.state.disconnected.length > 0 && this.state.disconnected.reduce(function(acc,curr) { // s'il y a un déconnecté
                                         return acc || curr;
                                       }) ?
                 <>
@@ -218,7 +219,7 @@ class App extends Component {
               :
               <>
               <p>Ne bougez pas! Une partie est en cours, vous rejoindrez dès qu'elle se termine.</p>
-              {this.state.disconnected.reduce(function(acc,curr) { // s'il y a un déconnecté
+              {this.state.disconnected.length > 0 && this.state.disconnected.reduce(function(acc,curr) { // s'il y a un déconnecté
                                         return acc || curr;
                                       }) &&
               <p>Si vous avez été déconnecté, reconnectez vous avec le pseudo exact.</p>
