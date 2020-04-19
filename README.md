@@ -3,7 +3,10 @@
 
 Find the word, or Mr. White.
 
-run server : node ./src/server/index.js
+How to play :
+run : yarn build
+run server : yarn start
+    or       node ./src/server/index.js
 access server via localhost:3000
 
 Available languages : fr only
