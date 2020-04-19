@@ -14,7 +14,7 @@ const io = socketIo(server);
 
 app.use(express.static(path.join(__dirname, '../../build')));
 
-app.get('../../', (req, res, next) => res.sendFile(__dirname + './index.html'));
+app.get('/', (req, res, next) => res.sendFile(__dirname + './index.html'));
 
 let players = [], playersSockets = [], ready = [], alive=[], turnDone=[], playersVotes=[], disconnected=[];
 let totalPlayers = 0, gameState = 0, mrWhite = 0, turn = 0, deads = 0;
