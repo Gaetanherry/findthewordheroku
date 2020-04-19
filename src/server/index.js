@@ -38,8 +38,24 @@ function findWord() {
   });
 }
 
+const resetGame = () => {
+  players = [];
+  playersSockets = [];
+  ready = []; 
+  alive=[]; 
+  turnDone=[]; 
+  playersVotes=[];
+  disconnected=[];
+  totalPlayers = 0;
+  gameState = 0;
+  mrWhite = 0;
+  turn = 0;
+  deads = 0;
+  word = "";
+}
+
 const addPlayer = (socket,name) => {
-    let i = players.indexOf(name);
+  let i = players.indexOf(name);
   if (gameState === 0) {
     players.push(name);
     playersSockets.push(socket);
@@ -93,6 +109,12 @@ const removePlayer = socket => {
       } else {
         disconnected[i]=true;
         io.emit("disconnected",disconnected);
+
+        if(disconnected[i].reduce(function(acc,curr) { // si tout le monde est déco
+          return acc && curr;
+        })) {
+          resetGame();
+        }
       }
   }
 }
