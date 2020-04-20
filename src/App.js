@@ -85,7 +85,7 @@ class App extends Component {
 
   render() {
     let deadPlayers = [];
-    this.state.players.disconnected.forEach((disco,i) => {
+    this.state.players.disconnected && this.state.players.disconnected.forEach((disco,i) => {
       disco && deadPlayers.push(this.state.players[i]);
     });
     return (
@@ -160,7 +160,7 @@ class App extends Component {
                 </div>
                 <p>Au tour de {this.state.players[this.state.turn].name} de donner son mot !</p>
 
-                {this.state.players[this.state.turn].name === this.state.name && //c'est ton tour
+                {this.state.players[this.state.turn].socket === socket.id && //c'est ton tour
                   <>
                   <br/><button className="playButton" onClick={() => this.turnFinished()}> Mot donné </button>
                   </>
@@ -206,7 +206,7 @@ class App extends Component {
               :
               <>
               <p>Ne bougez pas! Une partie est en cours, vous rejoindrez dès qu'elle se termine.</p>
-              {this.state.players.disconnected.reduce(function(acc,curr) { // s'il y a un déconnecté
+              {this.state.players.disconnected && this.state.players.disconnected.reduce(function(acc,curr) { // s'il y a un déconnecté
                                         return acc || curr;
                                       }) &&
               <p>Si vous avez été déconnecté, reconnectez vous avec le pseudo exact.</p>

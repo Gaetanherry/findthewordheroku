@@ -26,7 +26,7 @@ app.get('/', (req, res, next) => res.sendFile(__dirname + './index.html'));
   disconnected : Boolean;
 } */
 
-let players = []; 
+let players = [], sockets=[]; 
 let totalPlayers = 0, gameState = 0, mrWhite = 0, turn = 0, deads = 0, votesDone = 0;
 let word = "";
 const wordlength = 503;
@@ -37,7 +37,7 @@ function findWord() {
   let rowNumber = Math.floor(Math.random() * wordlength) +1;
   nthline(rowNumber, filePath).then(line => {
     word = line;
-    players.socket.forEach( (socket,i) => {
+    sockets.forEach( (socket,i) => {
       if(mrWhite === i) {
         socket.emit("mrWhite",true)
       } else {
@@ -50,6 +50,7 @@ function findWord() {
 
 const resetGame = () => {
   players = [];
+  sockets = [];
   totalPlayers = 0;
   gameState = 0;
   mrWhite = 0;
@@ -60,20 +61,20 @@ const resetGame = () => {
 }
 
 const addPlayer = (socket,name) => {
-  let i = players.name.indexOf(name);
+  let i = players.name && players.name.indexOf(name);
   if (gameState === 0) {
     players.push({
       name : name,
-      socket : socket,
+      socket : socket.id,
       ready : false,
       alive : true,
       turnDone : false,
       votes : 0,
       disconnected : false});
+    sockets.push(socket);
     console.log("New Player "+name+" connected.");
     socket.emit("registered");
     io.emit("players", players);
-
     if (players.length>totalPlayers) {
       addTotalPlayer(players.length-totalPlayers);
     } else {
@@ -81,7 +82,8 @@ const addPlayer = (socket,name) => {
     }
   } else if(players[i].disconnected){
     players[i].disconnected = false;
-    players[i].socket = socket;
+    players[i].socket = socket.id;
+    sockets[i] = socket;
     console.log("Player "+players[i].name+" reconnected.");
     socket.emit("registered");
     io.emit("players",players);
@@ -97,16 +99,17 @@ const addPlayer = (socket,name) => {
       socket.emit("voteState");
     }
   } else {
-    socket.emit("newGame"); // gamestate 1
+    socket.emit("newGame"); // gamestate 1 pour qu'on demande d'attendre
   }
 }
 
 const removePlayer = socket => {
-  var i = players.socket.indexOf(socket);
-    if (i !== -1) {
+  var i = players.socket && players.socket.indexOf(socket.id);
+    if (i && i !== -1) {
       console.log("Player "+players[i].name+" disconnected");
       if (gameState === 0) {
-        players.splice(i, 1);  
+        players.splice(i, 1);
+        sockets.splice(i, 1);
         io.emit("players", players);
       } else {
         players[i].disconnected=true;
@@ -132,7 +135,7 @@ const addTotalPlayer = (nb) => {
 }
 
 const setReady = (socket,readyBool) => {
-  var i = players.socket.indexOf(socket);  
+  var i = players.socket.indexOf(socket.id);  
   players[i].ready = readyBool;
   io.emit("players",players);
 
