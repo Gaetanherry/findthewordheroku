@@ -16,6 +16,16 @@ app.use(express.static(path.join(__dirname, '../../build')));
 
 app.get('/', (req, res, next) => res.sendFile(__dirname + './index.html'));
 
+/* interface player {
+  name : String;
+  socket : String;
+  ready : Boolean;
+  alive : Boolean;
+  turnDone : Boolean;
+  votes : Number;
+  disconnected : Boolean;
+} */
+
 let players = [], playersSockets = [], ready = [], alive=[], turnDone=[], playersVotes=[], disconnected=[];
 let totalPlayers = 0, gameState = 0, mrWhite = 0, turn = 0, deads = 0;
 let word = "";
@@ -136,7 +146,7 @@ const setReady = (socket,readyBool) => {
 
   if (ready.reduce(function(acc,curr) { // si tout le monde ready et si on est plus de 2
     return acc && curr;
-  }) && players.length > 2) {
+  }) && players.length > 2 && players.length === totalPlayers) {
     gameState = 1;
     newGame();
   };
