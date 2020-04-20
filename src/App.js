@@ -9,10 +9,9 @@ var socket;
 class App extends Component {
   constructor() {
     super();
-    let port = process.env.PORT || 3000;
+    //let port = process.env.PORT || 3000;
     this.state = {
       isReady: false,
-      ready : [],
       registered: false,
       players: [],
       totalPlayers: 0,
@@ -23,48 +22,36 @@ class App extends Component {
       word: "",
       death: "",
       turn: 0,
-      turnDone: [],
-      alive: [],
       vote: -1,
-      playersVotes: [],
       whiteDead: false,
-      whiteWon: false,
-      disconnected: []
+      whiteWon: false
     };
     socket=socketIOClient(this.state.endpoint);
   }
 
+  /* interface player {
+  name : String;
+  socket : String;
+  ready : Boolean;
+  alive : Boolean;
+  turnDone : Boolean;
+  votes : Number;
+  disconnected : Boolean;
+  } */
+
   componentDidMount() {
     socket.on("registered", () => this.setState({ registered : true }));
-    socket.on("disconnected", data => this.setState({ disconnected : data}));
     socket.on("lobby", () => this.setState({ gameState : 0, isReady : false }));
     socket.on("mrWhiteWon", () => this.setState({ whiteWon : true }));
     socket.on("mrWhiteDead", () => this.setState({ whiteDead : true }));
-    socket.on("voteState", () => this.setState({ gameState : 2, vote : this.state.players.length }));
-    socket.on("playersVotes", data => this.setState({ playersVotes : data }));
-    socket.on("alive", data => this.oneDeath(data));
-    socket.on("turnDone", data => this.setState({ turnDone : data }));
+    socket.on("voteState", () => this.setState({ gameState : 2, vote : -1 }));
+    socket.on("death", index => this.setState({ death : this.state.players[index].name, gameState : 3}));
     socket.on("turn", data => this.setState({ gameState : 1, turn : data }));
     socket.on("word", data => this.setState({ word : data }));
     socket.on("mrWhite", bool => this.setState({ mrWhite : bool, whiteDead : false, whiteWon : false }));
     socket.on("newGame", () => this.setState({ gameState : 1 }));
-    socket.on("ready", data => this.setState({ ready : data }));
     socket.on("players", data => this.setState({ players : data }));
     socket.on("totalPlayers", data => this.setState({ totalPlayers: data }));
-  }
-
-  oneDeath(aliveData) {
-    if(aliveData.reduce(function(acc,curr) { // si c'est un reset des alive
-      return acc && curr;
-    })) {
-      this.setState({ alive : aliveData });
-    } else {
-      let index = 0;
-      while(this.state.alive[index] === aliveData[index]) {
-        index++;
-      }
-      this.setState({ death : this.state.players[index], gameState : 3, alive : aliveData });
-    }
   }
 
   addPlayer(num) {
@@ -97,9 +84,9 @@ class App extends Component {
   }
 
   render() {
-    let dPlayers = [];
-    this.state.disconnected.forEach((item,i) => {
-      item && dPlayers.push(this.state.players[i]);
+    let deadPlayers = [];
+    this.state.players.disconnected.forEach((disco,i) => {
+      disco && deadPlayers.push(this.state.players[i]);
     });
     return (
         
@@ -122,8 +109,8 @@ class App extends Component {
                 <table>
                   <th><td>Joueurs</td></th>
                   {
-                    this.state.players.map((player,i) => {
-                    return<tr><td>{player} {this.state.ready[i] && <i className="fas fa-check fa-1x"></i>}</td></tr>;
+                    this.state.players.map((player) => {
+                    return<tr><td>{player.name} {player.ready && <i className="fas fa-check fa-1x"></i>}</td></tr>;
                     })
                   }
                 </table>
@@ -148,13 +135,13 @@ class App extends Component {
                 Vous devrez trouver des mots similaires mais pas trop, pour montrer aux autres que vous connaissez le mot,<br/>
                 tout en empêchant Mr. White, qui n'a aucun mot, de le deviner !</p>
               }
-              {this.state.disconnected.length > 0 && this.state.disconnected.reduce(function(acc,curr) { // s'il y a un déconnecté
+              {this.state.players.disconnected.reduce(function(acc,curr) { // s'il y a un déconnecté
                                         return acc || curr;
                                       }) ?
                 <>
                 <p>En attente de reconnexion de(s) joueur(s) :</p>
-                {dPlayers.map(item => {
-                    return <p>{item}</p>;
+                {deadPlayers.map(player => {
+                    return <p>{player.name}</p>;
                 })}
                 </>
               :
@@ -166,16 +153,16 @@ class App extends Component {
                   <th><td>Joueurs</td></th>
                   {
                     this.state.players.map((player,i) => {
-                    return<tr><td>{this.state.alive[i] ? <>{this.state.turnDone[i] ? <i>{player}</i> : <>{player}</>}</> : <del>{player}</del> } {this.state.turn === i && <i className="fas fa-arrow-left fa-1x"></i>}</td></tr>;
+                    return<tr><td>{player.alive ? <>{player.turnDone ? <i>{player.name}</i> : <>{player.name}</>}</> : <del>{player.name}</del> } {this.state.turn === i && <i className="fas fa-arrow-left fa-1x"></i>}</td></tr>;
                     })
                   }
                 </table>
                 </div>
-                <p>Au tour de {this.state.players[this.state.turn]} de donner son mot !</p>
+                <p>Au tour de {this.state.players[this.state.turn].name} de donner son mot !</p>
 
-                {this.state.players[this.state.turn] === this.state.name && //c'est ton tour
+                {this.state.players[this.state.turn].name === this.state.name && //c'est ton tour
                   <>
-                  <br/><button className="playButton" onClick={() => this.turnFinished()}>Mot donné</button>
+                  <br/><button className="playButton" onClick={() => this.turnFinished()}> Mot donné </button>
                   </>
                 }
                 </>
@@ -188,7 +175,7 @@ class App extends Component {
                     <th><td>Joueurs</td></th>
                     {
                       this.state.players.map((player,i) => {
-                      return<tr><td>{this.state.alive[i] ? <button className="playButton" onClick={() => this.giveVote(i)}>{player}</button> : <del>{player}</del>} {this.state.playersVotes[i]} Votes</td></tr>;
+                      return<tr><td>{player.alive ? <button className="playButton" onClick={() => this.giveVote(i)}>{player.name}</button> : <del>{player.name}</del>} {player.votes} Votes</td></tr>;
                       })
                     }
                   </table>
@@ -219,7 +206,7 @@ class App extends Component {
               :
               <>
               <p>Ne bougez pas! Une partie est en cours, vous rejoindrez dès qu'elle se termine.</p>
-              {this.state.disconnected.length > 0 && this.state.disconnected.reduce(function(acc,curr) { // s'il y a un déconnecté
+              {this.state.players.disconnected.reduce(function(acc,curr) { // s'il y a un déconnecté
                                         return acc || curr;
                                       }) &&
               <p>Si vous avez été déconnecté, reconnectez vous avec le pseudo exact.</p>

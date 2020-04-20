@@ -26,8 +26,8 @@ app.get('/', (req, res, next) => res.sendFile(__dirname + './index.html'));
   disconnected : Boolean;
 } */
 
-let players = [], playersSockets = [], ready = [], alive=[], turnDone=[], playersVotes=[], disconnected=[];
-let totalPlayers = 0, gameState = 0, mrWhite = 0, turn = 0, deads = 0;
+let players = []; 
+let totalPlayers = 0, gameState = 0, mrWhite = 0, turn = 0, deads = 0, votesDone = 0;
 let word = "";
 const wordlength = 503;
 
@@ -37,7 +37,7 @@ function findWord() {
   let rowNumber = Math.floor(Math.random() * wordlength) +1;
   nthline(rowNumber, filePath).then(line => {
     word = line;
-    playersSockets.forEach( (socket,i) => {
+    players.socket.forEach( (socket,i) => {
       if(mrWhite === i) {
         socket.emit("mrWhite",true)
       } else {
@@ -50,46 +50,43 @@ function findWord() {
 
 const resetGame = () => {
   players = [];
-  playersSockets = [];
-  ready = []; 
-  alive=[]; 
-  turnDone=[]; 
-  playersVotes=[];
-  disconnected=[];
   totalPlayers = 0;
   gameState = 0;
   mrWhite = 0;
   turn = 0;
   deads = 0;
+  votesDone = 0;
   word = "";
 }
 
 const addPlayer = (socket,name) => {
-  let i = players.indexOf(name);
+  let i = players.name.indexOf(name);
   if (gameState === 0) {
-    players.push(name);
-    playersSockets.push(socket);
-    ready.push(false);
+    players.push({
+      name : name,
+      socket : socket,
+      ready : false,
+      alive : true,
+      turnDone : false,
+      votes : 0,
+      disconnected : false});
     console.log("New Player "+name+" connected.");
     socket.emit("registered");
     io.emit("players", players);
 
     if (players.length>totalPlayers) {
-      addTotalPlayer(socket, players.length-totalPlayers);
+      addTotalPlayer(players.length-totalPlayers);
     } else {
       socket.emit("totalPlayers",totalPlayers);
     }
-  } else if(disconnected[i]){
-    disconnected[i] = false;
-    playersSockets[i] = socket;
-    console.log("Player "+players[i]+" reconnected.");
+  } else if(players[i].disconnected){
+    players[i].disconnected = false;
+    players[i].socket = socket;
+    console.log("Player "+players[i].name+" reconnected.");
     socket.emit("registered");
-    socket.emit("disconnected",disconnected);
-    socket.emit("players",players);
+    io.emit("players",players);
     socket.emit("totalPlayers",totalPlayers);
     socket.emit("turn",turn);
-    socket.emit("turnDone",turnDone);
-    socket.emit("alive",alive);
     if (i === mrWhite) {
       socket.emit("mrWhite", true);
     } else {
@@ -98,29 +95,24 @@ const addPlayer = (socket,name) => {
     }
     if (gameState === 2) {
       socket.emit("voteState");
-      socket.emit("playersVotes",playersVotes);
     }
-    io.emit("disconnected",disconnected);
   } else {
     socket.emit("newGame"); // gamestate 1
   }
 }
 
 const removePlayer = socket => {
-  var i = playersSockets.indexOf(socket);
+  var i = players.socket.indexOf(socket);
     if (i !== -1) {
-      console.log("Player "+players[i]+" disconnected");
+      console.log("Player "+players[i].name+" disconnected");
       if (gameState === 0) {
-        playersSockets.splice(i, 1);  
-        players.splice(i, 1);
-        ready.splice(i, 1);
-
+        players.splice(i, 1);  
         io.emit("players", players);
       } else {
-        disconnected[i]=true;
-        io.emit("disconnected",disconnected);
+        players[i].disconnected=true;
+        io.emit("players", players);
 
-        if(disconnected[i].reduce(function(acc,curr) { // si tout le monde est déco
+        if(players[i].disconnected.reduce(function(acc,curr) { // si tout le monde est déco
           return acc && curr;
         })) {
           resetGame();
@@ -129,7 +121,7 @@ const removePlayer = socket => {
   }
 }
 
-const addTotalPlayer = (socket, nb) => {
+const addTotalPlayer = (nb) => {
   totalPlayers+=nb;
 
   if (totalPlayers < players.length) { 
@@ -140,11 +132,11 @@ const addTotalPlayer = (socket, nb) => {
 }
 
 const setReady = (socket,readyBool) => {
-  var i = playersSockets.indexOf(socket);  
-  ready[i] = readyBool;
-  io.emit("ready",ready);
+  var i = players.socket.indexOf(socket);  
+  players[i].ready = readyBool;
+  io.emit("players",players);
 
-  if (ready.reduce(function(acc,curr) { // si tout le monde ready et si on est plus de 2
+  if (players.ready.reduce(function(acc,curr) { // si tout le monde ready et si on est plus de 2
     return acc && curr;
   }) && players.length > 2 && players.length === totalPlayers) {
     gameState = 1;
@@ -156,18 +148,16 @@ const newGame = () => {
   mrWhite = Math.floor(Math.random() * players.length);
   findWord();
 
-  turnDone = players.map(player => {
+  players.turnDone = players.map(() => {
     return false;
   });
-  alive = players.map(player => {
+  players.alive = players.map(() => {
     return true;
   });
-  disconnected = players.map(player => {
+  players.disconnected = players.map(() => {
     return false;
   });
-  io.emit("turnDone", turnDone);
-  io.emit("alive", alive);
-  io.emit("disconnected",disconnected);
+  io.emit("players",players);
   turn = Math.floor(Math.random() * players.length);
   if(turn === mrWhite) {turn = Math.floor(Math.random() * players.length)}; // Mr White 2x moins de chance d'etre premier
   io.emit("turn",turn);
@@ -175,20 +165,20 @@ const newGame = () => {
 }
 
 const nextTurn = () => {
-  turnDone[turn] = true;
-  io.emit("turnDone", turnDone);
-  if (turnDone.reduce(function(acc,curr,i) { // si tout le monde a fait son tour
+  players[turn].turnDone = true;
+  io.emit("players", players);
+  if (players.turnDone.reduce(function(acc,curr,i) { // si tout le monde de vivant a fait son tour
     if (i === 1) {
-      return (acc || !alive[0]) && (curr || !alive[1]);
+      return (acc || !players[0].alive) && (curr || !players[1].alive);
     }
-    return acc && (curr || !alive[i]);
+    return acc && (curr || !players[i].alive);
   })) {
     gameState = 2;
-    playersVotes = players.map( player => {
+    players.votes = players.map( () => {
       return 0;
     })
-    playersVotes.push(0);
-    io.emit("playersVotes", playersVotes);
+    votesDone = 0;
+    io.emit("players", players);
     io.emit("voteState");
   } else { // il reste un tour à jouer au moins
     turn++;
@@ -196,7 +186,7 @@ const nextTurn = () => {
       turn = 0;
     }
 
-    while (!alive[turn]) {
+    while (!players[turn].alive) {
       turn++;
       if (turn === players.length) {
         turn = 0;
@@ -206,14 +196,18 @@ const nextTurn = () => {
   }
 }
 
-const giveVote = votes => {
-  playersVotes[votes[0]]--;
-  playersVotes[votes[1]]++;
-  io.emit("playersVotes", playersVotes);
+const giveVote = votes => { // votes[0] ancien votes[1] nouveau
+  if (votes[0] === -1) {
+    votesDone++;
+  } else {
+    players[votes[0]].votes--;
+  }
+  players[votes[1]].votes++;
+  io.emit("players", players);
 
-  if(playersVotes[players.length] === -(players.length - deads)) { //tout le monde a voté
+  if(votesDone === players.length - deads) { //tout le monde a voté
     let isMajority = true, index = 0;
-    playersVotes.reduce(function(acc,curr,i) { // s'il y a une majorité unique
+    players.votes.reduce(function(acc,curr,i) { // s'il y a une majorité unique
       if(curr > acc) {
         isMajority = true;
         index = i;
@@ -227,10 +221,11 @@ const giveVote = votes => {
     });
 
     if (isMajority) {
-      alive[index]= false;
+      players[index].alive= false;
       deads++;
-      io.emit("alive",alive);
-      if (index == mrWhite) {
+      io.emit("death",index)
+      io.emit("players",players);
+      if (index === mrWhite) {
         io.emit("mrWhiteDead");
         setTimeout(restartGame, 5000);
       } else {
@@ -246,19 +241,19 @@ const giveVote = votes => {
 }
 
 const setBackTurns = () => {
-  turnDone = players.map(player => {
+  players.turnDone = players.map(() => {
     return false;
   });
-  playersVotes = playersVotes.map(player => {
+  players.votes = players.map(() => {
     return 0;
   });
-  io.emit("turnDone", turnDone);
-  io.emit("playersVotes", playersVotes);
+  votesDone = 0;
+  io.emit("players", players);
   turn = Math.floor(Math.random() * (players.length - deads));
 
   let i=0;
   while(i<=turn) {
-    if (!alive[i]) {
+    if (!players[i].alive) {
       turn++;
     }
     i++;
@@ -268,25 +263,23 @@ const setBackTurns = () => {
 }
 
 const restartGame = () => {
-  ready = ready.map(rdy => {
+  players.ready = players.map(() => {
     return false;
   });
-  turnDone = players.map(player => {
+  players.turnDone = players.map(() => {
     return false;
   });
-  playersVotes = playersVotes.map(player => {
+  players.votes = players.map(() => {
     return 0;
   });
-  alive = alive.map(player => {
+  players.alive = players.map(() => {
     return true;
   })
-  io.emit("alive",alive);
-  io.emit("turnDone", turnDone);
-  io.emit("playersVotes", playersVotes);
-  io.emit("ready",ready);
+  io.emit("players",players);
   io.emit("mrWhite", false);
   io.emit("word","");
   io.emit("lobby");
+  votesDone = 0;
   deads = 0;
   gameState = 0
 }
