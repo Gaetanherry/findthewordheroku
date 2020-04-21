@@ -12,10 +12,10 @@ access server via localhost:3000<br />
 Available languages : fr only<br />
 Number of players : 3+<br />
 Rules : Each Player will receive a given word, except one secret player, Mr. White, who will have no word. Then, each player will have to say one word related to the word they have, to proove they are not Mr. Whit. After this, players have to vote for who is Mr. White according to them. This player is eliminated and everybody has to give a word again, etc until they find Mr. White. When Mr. White is eliminated, he has one try to find the exact word : if he succeeds, he wins.
-<br />
-To do :
+<br /><br />
+To do :<br />
 -enable multiple games at the same time<br />
-(-add english?)
+(-add english?)<br />
 
 ## Available Scripts
 
