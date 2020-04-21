@@ -134,6 +134,7 @@ const addPlayer = (socket,name) => {
       socket.emit("voteState");
     }
   } else {
+    socket.emit("players",players);
     socket.emit("newGame"); // gamestate 1 pour qu'on demande d'attendre
   }
 }
@@ -159,8 +160,8 @@ const removePlayer = socket => {
   }
 }
 
-const addTotalPlayer = (nb) => {
-  totalPlayers+=nb;
+const addTotalPlayer = num => {
+  totalPlayers+=num;
 
   if (totalPlayers < players.length) { 
     totalPlayers = players.length; 
@@ -168,7 +169,7 @@ const addTotalPlayer = (nb) => {
 
   io.emit("totalPlayers",totalPlayers);
 
-  if (getPlayersReady().length > 0 && getPlayersReady().reduce(function(acc,curr) { // si tout le monde ready et si on est plus de 2
+  if (getPlayersReady().length > 1 && getPlayersReady().reduce(function(acc,curr) { // si tout le monde ready et si on est plus de 2
     return acc && curr;
   }) && players.length > 2 && players.length === totalPlayers) {
     gameState = 1;
@@ -322,7 +323,7 @@ io.on("connection", socket => {
   socket.on("giveVote", votes => giveVote(votes));
   socket.on("nextTurn", () => nextTurn(socket));
   socket.on("newReady", ready => setReady(socket,ready));
-  socket.on("addPlayer", data => addTotalPlayer(socket,data));
+  socket.on("addPlayer", data => addTotalPlayer(data));
   socket.on("disconnect", () => removePlayer(socket));
 });
 
