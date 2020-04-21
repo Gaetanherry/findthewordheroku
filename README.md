@@ -3,19 +3,18 @@
 
 Find the word, or Mr. White.
 
-How to play :
-run : yarn build
-run server : yarn start
-    or       node ./src/server/index.js
-access server via localhost:3000
+How to play :<br />
+run : yarn build<br />
+run server : yarn start<br />
+    or       node ./src/server/index.js<br />
+access server via localhost:3000<br />
 
-Available languages : fr only
-Number of players : 3+
+Available languages : fr only<br />
+Number of players : 3+<br />
 Rules : Each Player will receive a given word, except one secret player, Mr. White, who will have no word. Then, each player will have to say one word related to the word they have, to proove they are not Mr. Whit. After this, players have to vote for who is Mr. White according to them. This player is eliminated and everybody has to give a word again, etc until they find Mr. White. When Mr. White is eliminated, he has one try to find the exact word : if he succeeds, he wins.
-
+<br />
 To do :
--merge variables in a player object
--enable multiple games at the same time
+-enable multiple games at the same time<br />
 (-add english?)
 
 ## Available Scripts
