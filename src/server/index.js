@@ -16,7 +16,7 @@ app.use(express.static(path.join(__dirname, '../../build')));
 
 app.get('/', (req, res, next) => res.sendFile(__dirname + './index.html'));
 
-/* interface player {
+/* object player {
   name : String;
   socket : String;
   ready : Boolean;
@@ -30,6 +30,36 @@ let players = [], sockets=[];
 let totalPlayers = 0, gameState = 0, mrWhite = 0, turn = 0, deads = 0, votesDone = 0;
 let word = "";
 const wordlength = 503;
+
+const getPlayersName = () => {
+  return (players.length === 0 && []) || players.map(player => {
+    return player.name;
+  });
+}
+
+const getPlayersDisconnected = () => {
+  return (players.length === 0 && []) || players.map(player => {
+    return player.disconnected;
+  });
+}
+
+const getPlayersReady = () => {
+  return (players.length === 0 && []) || players.map(player => {
+    return player.ready;
+  });
+}
+
+const getPlayersTurnDone = () => {
+  return (players.length === 0 && []) || players.map(player => {
+    return player.turnDone;
+  });
+}
+
+const getPlayersVotes = () => {
+  return (players.length === 0 && []) || players.map(player => {
+    return player.votes;
+  });
+}
 
 const nthline = require('nthline'), filePath = './src/server/words.txt';
 
@@ -61,26 +91,30 @@ const resetGame = () => {
 }
 
 const addPlayer = (socket,name) => {
-  let i = players.name && players.name.indexOf(name);
+  let i = getPlayersName().indexOf(name);
   if (gameState === 0) {
-    players.push({
-      name : name,
-      socket : socket.id,
-      ready : false,
-      alive : true,
-      turnDone : false,
-      votes : 0,
-      disconnected : false});
-    sockets.push(socket);
-    console.log("New Player "+name+" connected.");
-    socket.emit("registered");
-    io.emit("players", players);
-    if (players.length>totalPlayers) {
-      addTotalPlayer(players.length-totalPlayers);
+    if (i !== -1) { // ce nom existe déjà
+      socket.emit("nameTaken");
     } else {
-      socket.emit("totalPlayers",totalPlayers);
+      players.push({
+        name : name,
+        socket : socket.id,
+        ready : false,
+        alive : true,
+        turnDone : false,
+        votes : 0,
+        disconnected : false});
+      sockets.push(socket);
+      console.log("New Player "+name+" connected.");
+      socket.emit("registered");
+      io.emit("players", players);
+      if (players.length>totalPlayers) {
+        addTotalPlayer(players.length-totalPlayers);
+      } else {
+        socket.emit("totalPlayers",totalPlayers);
+      }
     }
-  } else if(players[i].disconnected){
+  } else if(i !== -1 && players[i].disconnected){
     players[i].disconnected = false;
     players[i].socket = socket.id;
     sockets[i] = socket;
@@ -104,8 +138,8 @@ const addPlayer = (socket,name) => {
 }
 
 const removePlayer = socket => {
-  var i = players.socket && players.socket.indexOf(socket.id);
-    if (i && i !== -1) {
+  let i = sockets.indexOf(socket);
+    if (i !== -1) {
       console.log("Player "+players[i].name+" disconnected");
       if (gameState === 0) {
         players.splice(i, 1);
@@ -115,7 +149,7 @@ const removePlayer = socket => {
         players[i].disconnected=true;
         io.emit("players", players);
 
-        if(players[i].disconnected.reduce(function(acc,curr) { // si tout le monde est déco
+        if(getPlayersDisconnected().reduce(function(acc,curr) { // si tout le monde est déco
           return acc && curr;
         })) {
           resetGame();
@@ -132,14 +166,21 @@ const addTotalPlayer = (nb) => {
   }
 
   io.emit("totalPlayers",totalPlayers);
+
+  if (getPlayersReady().reduce(function(acc,curr) { // si tout le monde ready et si on est plus de 2
+    return acc && curr;
+  }) && players.length > 2 && players.length === totalPlayers) {
+    gameState = 1;
+    newGame();
+  };
 }
 
 const setReady = (socket,readyBool) => {
-  var i = players.socket.indexOf(socket.id);  
+  let i = sockets.indexOf(socket);  
   players[i].ready = readyBool;
   io.emit("players",players);
 
-  if (players.ready.reduce(function(acc,curr) { // si tout le monde ready et si on est plus de 2
+  if (getPlayersReady().reduce(function(acc,curr) { // si tout le monde ready et si on est plus de 2
     return acc && curr;
   }) && players.length > 2 && players.length === totalPlayers) {
     gameState = 1;
@@ -151,14 +192,10 @@ const newGame = () => {
   mrWhite = Math.floor(Math.random() * players.length);
   findWord();
 
-  players.turnDone = players.map(() => {
-    return false;
-  });
-  players.alive = players.map(() => {
-    return true;
-  });
-  players.disconnected = players.map(() => {
-    return false;
+  players.forEach(player => {
+    player.turnDone = false;
+    player.alive = true;
+    player.disconnected = false;
   });
   io.emit("players",players);
   turn = Math.floor(Math.random() * players.length);
@@ -170,15 +207,15 @@ const newGame = () => {
 const nextTurn = () => {
   players[turn].turnDone = true;
   io.emit("players", players);
-  if (players.turnDone.reduce(function(acc,curr,i) { // si tout le monde de vivant a fait son tour
+  if (getPlayersTurnDone().reduce(function(acc,curr,i) { // si tout le monde de vivant a fait son tour
     if (i === 1) {
       return (acc || !players[0].alive) && (curr || !players[1].alive);
     }
     return acc && (curr || !players[i].alive);
   })) {
     gameState = 2;
-    players.votes = players.map( () => {
-      return 0;
+    players.forEach( player => {
+      player.votes = 0;
     })
     votesDone = 0;
     io.emit("players", players);
@@ -210,7 +247,7 @@ const giveVote = votes => { // votes[0] ancien votes[1] nouveau
 
   if(votesDone === players.length - deads) { //tout le monde a voté
     let isMajority = true, index = 0;
-    players.votes.reduce(function(acc,curr,i) { // s'il y a une majorité unique
+    getPlayersVotes().reduce(function(acc,curr,i) { // s'il y a une majorité unique
       if(curr > acc) {
         isMajority = true;
         index = i;
@@ -244,11 +281,9 @@ const giveVote = votes => { // votes[0] ancien votes[1] nouveau
 }
 
 const setBackTurns = () => {
-  players.turnDone = players.map(() => {
-    return false;
-  });
-  players.votes = players.map(() => {
-    return 0;
+  players.forEach(player => {
+    player.turnDone = false;
+    player.votes = 0;
   });
   votesDone = 0;
   io.emit("players", players);
@@ -266,18 +301,12 @@ const setBackTurns = () => {
 }
 
 const restartGame = () => {
-  players.ready = players.map(() => {
-    return false;
+  players.forEach(player => {
+    player.ready = false;
+    player.turnDone = false;
+    player.votes = 0;
+    player.alive = true;
   });
-  players.turnDone = players.map(() => {
-    return false;
-  });
-  players.votes = players.map(() => {
-    return 0;
-  });
-  players.alive = players.map(() => {
-    return true;
-  })
   io.emit("players",players);
   io.emit("mrWhite", false);
   io.emit("word","");

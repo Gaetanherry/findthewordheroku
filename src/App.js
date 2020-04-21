@@ -24,7 +24,8 @@ class App extends Component {
       turn: 0,
       vote: -1,
       whiteDead: false,
-      whiteWon: false
+      whiteWon: false,
+      nameTaken : false
     };
     socket=socketIOClient(this.state.endpoint);
   }
@@ -40,7 +41,7 @@ class App extends Component {
   } */
 
   componentDidMount() {
-    socket.on("registered", () => this.setState({ registered : true }));
+    socket.on("registered", () => this.setState({ registered : true, nameTaken : false }));
     socket.on("lobby", () => this.setState({ gameState : 0, isReady : false }));
     socket.on("mrWhiteWon", () => this.setState({ whiteWon : true }));
     socket.on("mrWhiteDead", () => this.setState({ whiteDead : true }));
@@ -52,6 +53,7 @@ class App extends Component {
     socket.on("newGame", () => this.setState({ gameState : 1 }));
     socket.on("players", data => this.setState({ players : data }));
     socket.on("totalPlayers", data => this.setState({ totalPlayers: data }));
+    socket.on("nameTaken", () => this.setState({ nameTaken : true }));
   }
 
   addPlayer(num) {
@@ -83,10 +85,16 @@ class App extends Component {
     this.setState({ vote : i });
   }
 
+ getPlayersDisconnected() {
+    return (this.state.players.length === 0 && []) || this.state.players.map(player => {
+      return player.disconnected;
+    });
+  }
+
   render() {
-    let deadPlayers = [];
-    this.state.players.disconnected && this.state.players.disconnected.forEach((disco,i) => {
-      disco && deadPlayers.push(this.state.players[i]);
+    let decoPlayers = [];
+    this.getPlayersDisconnected().forEach((disco,i) => {
+      disco && decoPlayers.push(this.state.players[i]);
     });
     return (
         
@@ -120,8 +128,13 @@ class App extends Component {
               }
               </>
             :
+              <>
               <p>Entre ton pseudo :  <input value={this.state.name} onChange={evt => this.setState({ name : evt.target.value})}/>
               <button className="playButton" onClick={() => this.play()}>Jouer</button></p>
+
+              {this.state.nameTaken &&
+              <><br/><p>Nom déjà pris !</p></>}
+              </>
             }
             </>
           : // Jeu a débuté
@@ -135,12 +148,12 @@ class App extends Component {
                 Vous devrez trouver des mots similaires mais pas trop, pour montrer aux autres que vous connaissez le mot,<br/>
                 tout en empêchant Mr. White, qui n'a aucun mot, de le deviner !</p>
               }
-              {this.state.players.disconnected.reduce(function(acc,curr) { // s'il y a un déconnecté
+              {this.getPlayersDisconnected().length > 0 && this.getPlayersDisconnected().reduce(function(acc,curr) { // s'il y a un déconnecté
                                         return acc || curr;
                                       }) ?
                 <>
                 <p>En attente de reconnexion de(s) joueur(s) :</p>
-                {deadPlayers.map(player => {
+                {decoPlayers.map(player => {
                     return <p>{player.name}</p>;
                 })}
                 </>
@@ -206,7 +219,7 @@ class App extends Component {
               :
               <>
               <p>Ne bougez pas! Une partie est en cours, vous rejoindrez dès qu'elle se termine.</p>
-              {this.state.players.disconnected && this.state.players.disconnected.reduce(function(acc,curr) { // s'il y a un déconnecté
+              {this.getPlayersDisconnected().length > 0 && this.getPlayersDisconnected().reduce(function(acc,curr) { // s'il y a un déconnecté
                                         return acc || curr;
                                       }) &&
               <p>Si vous avez été déconnecté, reconnectez vous avec le pseudo exact.</p>
