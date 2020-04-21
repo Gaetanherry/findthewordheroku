@@ -16,6 +16,7 @@ app.use(express.static(path.join(__dirname, '../../build')));
 
 app.get('/', (req, res, next) => res.sendFile(__dirname + './index.html'));
 
+
 /* object player {
   name : String;
   socket : String;
@@ -167,7 +168,7 @@ const addTotalPlayer = (nb) => {
 
   io.emit("totalPlayers",totalPlayers);
 
-  if (getPlayersReady().reduce(function(acc,curr) { // si tout le monde ready et si on est plus de 2
+  if (getPlayersReady().length > 0 && getPlayersReady().reduce(function(acc,curr) { // si tout le monde ready et si on est plus de 2
     return acc && curr;
   }) && players.length > 2 && players.length === totalPlayers) {
     gameState = 1;
@@ -317,10 +318,10 @@ const restartGame = () => {
 }
 
 io.on("connection", socket => {
+  socket.on("newPlayer", name => addPlayer(socket,name));
   socket.on("giveVote", votes => giveVote(votes));
   socket.on("nextTurn", () => nextTurn(socket));
   socket.on("newReady", ready => setReady(socket,ready));
-  socket.on("newPlayer", name => addPlayer(socket,name));
   socket.on("addPlayer", data => addTotalPlayer(socket,data));
   socket.on("disconnect", () => removePlayer(socket));
 });

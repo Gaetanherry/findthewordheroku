@@ -54,6 +54,7 @@ class App extends Component {
     socket.on("players", data => this.setState({ players : data }));
     socket.on("totalPlayers", data => this.setState({ totalPlayers: data }));
     socket.on("nameTaken", () => this.setState({ nameTaken : true }));
+    socket.on("disconnect",() => window.location.reload());
   }
 
   addPlayer(num) {
@@ -222,7 +223,7 @@ class App extends Component {
               {this.getPlayersDisconnected().length > 0 && this.getPlayersDisconnected().reduce(function(acc,curr) { // s'il y a un déconnecté
                                         return acc || curr;
                                       }) &&
-              <p>Si vous avez été déconnecté, reconnectez vous avec le pseudo exact.</p>
+              <p>Si vous avez été déconnecté, reconnectez vous avec le pseudo exact. Actualisez la page</p>
               }
               </>
             }
